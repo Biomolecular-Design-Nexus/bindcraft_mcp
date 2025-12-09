@@ -11,7 +11,7 @@ mamba activate ./env
 pip install --ignore-installed fastmcp loguru
 
 # Install BindCraft
-git clone https://github.com/charlesxu90/bindcraft repo/BindCraft
+git clone https://github.com/charlesxu90/bindcraft scripts
 
 mamba install pandas matplotlib 'numpy<2.0.0' biopython scipy pdbfixer seaborn libgfortran5 tqdm jupyter ffmpeg pyrosetta fsspec py3dmol \
     chex dm-haiku 'flax<0.10.0' dm-tree joblib ml-collections immutabledict optax \
@@ -22,15 +22,15 @@ mamba install pandas matplotlib 'numpy<2.0.0' biopython scipy pdbfixer seaborn l
 pip3 install git+https://github.com/sokrypton/ColabDesign.git --no-deps
 
 # Install and extract AlphaFold2 Weights
-mkdir -p repo/BindCraft/params
-wget -O repo/BindCraft/alphafold_params_2022-12-06.tar https://storage.googleapis.com/alphafold/alphafold_params_2022-12-06.tar
-tar tf repo/BindCraft/alphafold_params_2022-12-06.tar
-tar -xvf repo/BindCraft/alphafold_params_2022-12-06.tar -C repo/BindCraft/params
-rm repo/BindCraft/alphafold_params_2022-12-06.tar
+mkdir -p scripts/params
+wget -O scripts/alphafold_params_2022-12-06.tar https://storage.googleapis.com/alphafold/alphafold_params_2022-12-06.tar
+tar tf scripts/alphafold_params_2022-12-06.tar
+tar -xvf scripts/alphafold_params_2022-12-06.tar -C scripts/params
+rm scripts/alphafold_params_2022-12-06.tar
 
 # Chmod 
-chmod +x repo/BindCraft/functions/dssp
-chmod +x repo/BindCraft/functions/DAlphaBall.gcc
+chmod +x scripts/functions/dssp
+chmod +x scripts/functions/DAlphaBall.gcc
 ```
 
 ## Local usage
@@ -56,9 +56,18 @@ fastmcp install claude-code tool-mcps/bindcraft_mcp/src/bindcraft_mcp.py --pytho
 fastmcp install gemini-cli tool-mcps/bindcraft_mcp/src/bindcraft_mcp.py --python tool-mcps/bindcraft_mcp/env/bin/python
 ```
 ### Call MCP service
-1. Basic end to end structure prediction give sequences
+1. Submit a job for end to end binder design give a target pdb structure
 ```markdown
-Please predict the complex of 1iep (seq: MDPSSPNYDKWEMERTDITMKHKLGGGQYGEVYEGVWKKYSLTVAVKTLKEDTMEVEEFLKEAAVMKEIKHPNLVQLLGVCTREPPFYIITEFMTYGNLLDYLRECNRQEVSAVVLLYMATQISSAMEYLEKKNFIHRDLAARNCLVGENHLVKVADFGLSRLMTGDTYTAHAGAKFPIKWTAPESLAYNKFSIKSDVWAFGVLLWEIATYGMSPYPGIDLSQVYELLEKDYRMERPEGCPEKVYELMRACWQWNPSDRPSFAEIHQAFETMFQ) and ligand (Smiles: Cc1ccc(NC(=O)c2ccc(CN3CC[NH+](C)CC3)cc2)cc1Nc1nccc(-c2cccnc2)n1) using the bindcraft_mcp. save it to @examples/1iep_raw .
+Please design binder for target PDL1 with PDB file @examples/PDL1/PDL1.pdb with settings @examples/PDL1/*.json using the bindcraft_mcp. save it to @examples/PDL1_results_test. 
+
+After submitting the job, please query status 
+
+Please convert the relative path to absolution path before calling the MCP servers. 
+```
+
+2. Query the status of a submitted binder design job
+```markdown
+Please check status of the binder design task @examples/PDL1/result_mcp using the bindcraft_mcp.
 
 Please convert the relative path to absolution path before calling the MCP servers. 
 ```
