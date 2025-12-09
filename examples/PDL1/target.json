@@ -1,0 +1,9 @@
+{
+    "design_path": "/home/xux/Desktop/ProteinMCP/ProteinMCP/tool-mcps/bindcraft_mcp/examples/PDL1/result_mcp/",
+    "binder_name": "PDL1",
+    "starting_pdb": "/home/xux/Desktop/ProteinMCP/ProteinMCP/tool-mcps/bindcraft_mcp/examples/PDL1/PDL1.pdb",
+    "chains": "A",
+    "target_hotspot_residues": "56",
+    "lengths": [65, 150],
+    "number_of_final_designs": 100
+}
