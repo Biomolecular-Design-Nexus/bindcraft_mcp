@@ -1,0 +1,23 @@
+{
+  "_description": "Configuration for Async Job Submission (Use Case 2)",
+  "_source": "Extracted from examples/use_case_2_async_submission.py",
+
+  "name": "AsyncBinder",
+  "chains": "A",
+  "hotspot": null,
+  "binder_length": 130,
+  "num_designs": 3,
+  "device": "0",
+  "filters_enabled": true,
+
+  "processing": {
+    "asynchronous": true,
+    "background_execution": true,
+    "log_file": "bindcraft_run.log"
+  },
+
+  "output": {
+    "save_job_info": true,
+    "include_pid": true
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "_description": "Configuration for Quick Binder Design (Use Case 1)",
+  "_source": "Extracted from examples/use_case_1_quick_design.py",
+
+  "name": "QuickBinder",
+  "chains": "A",
+  "hotspot": null,
+  "binder_length": 130,
+  "num_designs": 1,
+  "device": "0",
+  "filters_enabled": true,
+
+  "processing": {
+    "timeout": 3600,
+    "synchronous": true
+  },
+
+  "output": {
+    "save_statistics": true,
+    "include_metadata": true
+  }
+}

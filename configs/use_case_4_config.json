@@ -1,0 +1,30 @@
+{
+  "_description": "Configuration for Batch Design Processing (Use Case 4)",
+  "_source": "Extracted from examples/use_case_4_batch_design.py",
+
+  "base_name": "BatchBinder",
+  "chains": "A",
+  "hotspot": null,
+  "binder_length": 130,
+  "num_designs": 2,
+  "device": "0",
+  "filters_enabled": true,
+
+  "batch": {
+    "max_concurrent": 1,
+    "monitor_interval": 60,
+    "save_batch_info": true
+  },
+
+  "processing": {
+    "asynchronous": true,
+    "background_execution": true,
+    "log_per_job": true
+  },
+
+  "output": {
+    "batch_tracking_file": "batch_jobs.json",
+    "individual_job_dirs": true,
+    "include_submission_info": true
+  }
+}

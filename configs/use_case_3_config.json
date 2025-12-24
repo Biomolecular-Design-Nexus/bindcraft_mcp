@@ -1,0 +1,24 @@
+{
+  "_description": "Configuration for Job Progress Monitoring (Use Case 3)",
+  "_source": "Extracted from examples/use_case_3_monitor_progress.py",
+
+  "monitoring": {
+    "refresh_interval": 30,
+    "max_iterations": 120,
+    "detailed": false,
+    "continuous": false
+  },
+
+  "analysis": {
+    "check_log_file": true,
+    "count_output_files": true,
+    "analyze_phases": true,
+    "detect_errors": true
+  },
+
+  "output": {
+    "show_statistics": true,
+    "show_configuration": true,
+    "include_file_lists": false
+  }
+}

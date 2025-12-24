@@ -1,0 +1,36 @@
+{
+  "_description": "Default configuration template for all MCP scripts",
+  "_source": "Common defaults extracted from all use cases",
+
+  "general": {
+    "device": "0",
+    "timeout": 3600
+  },
+
+  "design": {
+    "name": "Binder",
+    "chains": "A",
+    "hotspot": null,
+    "binder_length": 130,
+    "num_designs": 1,
+    "filters_enabled": true
+  },
+
+  "processing": {
+    "synchronous": true,
+    "background_execution": false,
+    "log_file": "bindcraft_run.log"
+  },
+
+  "paths": {
+    "bindcraft_scripts": "scripts",
+    "examples_data": "examples/data",
+    "configs": "configs"
+  },
+
+  "output": {
+    "save_statistics": true,
+    "include_metadata": true,
+    "create_readme": false
+  }
+}

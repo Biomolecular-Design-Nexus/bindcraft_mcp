@@ -1,0 +1,32 @@
+{
+  "_description": "Configuration for Configuration Generator (Use Case 5)",
+  "_source": "Extracted from examples/use_case_5_config_generator.py",
+
+  "name": "ConfigBinder",
+  "chains": "A",
+  "hotspot": null,
+  "binder_length": 130,
+  "num_designs": 1,
+
+  "generation": {
+    "auto_suggest_hotspots": true,
+    "validate_config": true,
+    "copy_defaults": true,
+    "analyze_structure": true
+  },
+
+  "analysis": {
+    "use_biopython": true,
+    "suggest_hotspots": true,
+    "chain_analysis": true,
+    "residue_counting": true
+  },
+
+  "output": {
+    "target_settings": "target_settings.json",
+    "generate_readme": true,
+    "include_metadata": true,
+    "copy_filter_defaults": true,
+    "copy_advanced_defaults": true
+  }
+}
