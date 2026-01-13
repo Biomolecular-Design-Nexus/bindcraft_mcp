@@ -58,6 +58,60 @@ def _resolve_path(path: Optional[str]) -> Optional[str]:
     return str(Path(path).resolve())
 
 
+# Required fields for run_bindcraft.py target settings
+REQUIRED_SETTINGS_FIELDS = [
+    "design_path",
+    "binder_name",
+    "starting_pdb",
+    "chains",
+    "lengths",
+    "number_of_final_designs"
+]
+
+
+def _validate_target_settings(settings: dict) -> list[str]:
+    """Validate target settings against run_bindcraft.py requirements.
+
+    Returns a list of error messages. Empty list means validation passed.
+    """
+    errors = []
+
+    # Check required fields
+    for field in REQUIRED_SETTINGS_FIELDS:
+        if field not in settings:
+            errors.append(f"Missing required field: '{field}'")
+
+    # Validate 'lengths' format (must be array with 2 elements)
+    if "lengths" in settings:
+        lengths = settings["lengths"]
+        if not isinstance(lengths, list):
+            errors.append(
+                f"'lengths' must be an array [min, max], not {type(lengths).__name__}. "
+                f"Got: {lengths}"
+            )
+        elif len(lengths) != 2:
+            errors.append(
+                f"'lengths' must have exactly 2 elements [min_length, max_length]. "
+                f"Got {len(lengths)} elements: {lengths}"
+            )
+
+    # Validate 'starting_pdb' exists
+    if "starting_pdb" in settings:
+        pdb_path = Path(settings["starting_pdb"])
+        if not pdb_path.exists():
+            errors.append(f"Target PDB file not found: {settings['starting_pdb']}")
+
+    # Validate 'number_of_final_designs' is positive
+    if "number_of_final_designs" in settings:
+        num_designs = settings["number_of_final_designs"]
+        if not isinstance(num_designs, int) or num_designs <= 0:
+            errors.append(
+                f"'number_of_final_designs' must be a positive integer. Got: {num_designs}"
+            )
+
+    return errors
+
+
 def _log_stream(stream, logs: list[str], prefix: str = ""):
     """Collect output from a stream and print in real-time."""
     for line in iter(stream.readline, ""):
@@ -188,6 +242,19 @@ def bindcraft_design_binder(
         # Load settings to get output path
         with open(settings_json, 'r') as f:
             target_settings = json.load(f)
+
+        # Validate settings before running
+        validation_errors = _validate_target_settings(target_settings)
+        if validation_errors:
+            error_msg = "Settings validation failed:\n  - " + "\n  - ".join(validation_errors)
+            logger.error(error_msg)
+            return {
+                "status": "error",
+                "error_message": error_msg,
+                "validation_errors": validation_errors,
+                "settings_json": settings_json,
+                "hint": "Required fields: design_path, binder_name, starting_pdb, chains, lengths (array), number_of_final_designs"
+            }
 
         output_dir = Path(target_settings.get("design_path", "output")).resolve()
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -383,6 +450,18 @@ def bindcraft_submit(
             error_msg = "Must provide either 'settings_json' OR ('target_pdb' + 'output_dir' + 'binder_name')"
             logger.error(error_msg)
             raise ValueError(error_msg)
+
+        # Validate settings before submission
+        validation_errors = _validate_target_settings(target_settings)
+        if validation_errors:
+            error_msg = "Settings validation failed:\n  - " + "\n  - ".join(validation_errors)
+            logger.error(error_msg)
+            return {
+                "status": "error",
+                "error_message": error_msg,
+                "validation_errors": validation_errors,
+                "hint": "Required fields: design_path, binder_name, starting_pdb, chains, lengths (array), number_of_final_designs"
+            }
 
         # Resolve filter and advanced settings paths
         filters_json = _resolve_path(filters_json) or defaults["filters"]

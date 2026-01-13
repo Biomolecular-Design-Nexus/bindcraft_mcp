@@ -156,26 +156,39 @@ def generate_target_settings(
     num_designs: int = 1,
     pdb_analysis: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
-    """Generate target settings JSON for BindCraft."""
+    """Generate target settings JSON for BindCraft.
+
+    Returns settings in the format expected by run_bindcraft.py:
+    - design_path: Output directory for designed binders
+    - binder_name: Prefix name for designed binders
+    - starting_pdb: Target protein PDB structure
+    - chains: Target chain(s) to design binder against
+    - target_hotspot_residues: Residue numbers to target (comma-separated)
+    - lengths: [min_length, max_length] range for binder length
+    - number_of_final_designs: Target number of accepted designs
+    """
     target_pdb_abs = resolve_path(target_pdb)
     output_dir_abs = resolve_path(output_dir)
 
+    # Determine hotspot residues
+    hotspot_residues = ""
+    if hotspot:
+        hotspot_residues = hotspot
+    elif pdb_analysis and pdb_analysis.get("suggested_hotspots"):
+        hotspot_residues = ",".join(pdb_analysis["suggested_hotspots"])
+
+    # Use correct field names matching run_bindcraft.py expectations
     settings = {
-        "target_pdb": target_pdb_abs,
-        "target_chains": chains,
+        "design_path": output_dir_abs,                    # NOT "output_dir"
         "binder_name": name,
-        "binder_length": binder_length,
-        "num_designs": num_designs,
-        "output_dir": output_dir_abs,
+        "starting_pdb": target_pdb_abs,                   # NOT "target_pdb"
+        "chains": chains,                                  # NOT "target_chains"
+        "target_hotspot_residues": hotspot_residues,      # NOT "hotspot"
+        "lengths": [binder_length, binder_length],        # Array format, NOT single int
+        "number_of_final_designs": num_designs            # NOT "num_designs"
     }
 
-    # Use provided hotspot or suggest from analysis
-    if hotspot:
-        settings["hotspot"] = hotspot
-    elif pdb_analysis and pdb_analysis.get("suggested_hotspots"):
-        settings["hotspot"] = ",".join(pdb_analysis["suggested_hotspots"])
-
-    # Add metadata if analysis available
+    # Add metadata if analysis available (prefixed with _ to mark as non-essential)
     if pdb_analysis:
         settings["_metadata"] = {
             "pdb_analysis": pdb_analysis,
@@ -186,7 +199,10 @@ def generate_target_settings(
 
 
 def validate_configuration(config_dir: Path) -> Dict[str, Any]:
-    """Validate generated configuration files."""
+    """Validate generated configuration files.
+
+    Validates that settings match the schema expected by run_bindcraft.py.
+    """
     validation_result = {
         "valid": True,
         "files_checked": [],
@@ -201,12 +217,41 @@ def validate_configuration(config_dir: Path) -> Dict[str, Any]:
             settings = load_json(target_file)
             validation_result["files_checked"].append("target_settings.json")
 
-            # Basic validation
-            required_fields = ["target_pdb", "target_chains", "binder_name", "output_dir"]
+            # Required fields for run_bindcraft.py
+            required_fields = [
+                "design_path",              # Output directory
+                "binder_name",              # Name prefix for designs
+                "starting_pdb",             # Target PDB file
+                "chains",                   # Target chains
+                "lengths",                  # [min, max] binder length
+                "number_of_final_designs"   # Target number of designs
+            ]
+
             for field in required_fields:
                 if field not in settings:
                     validation_result["errors"].append(f"Missing required field: {field}")
                     validation_result["valid"] = False
+
+            # Validate 'lengths' format (must be array)
+            if "lengths" in settings:
+                if not isinstance(settings["lengths"], list):
+                    validation_result["errors"].append(
+                        "'lengths' must be an array [min, max], not a single integer"
+                    )
+                    validation_result["valid"] = False
+                elif len(settings["lengths"]) != 2:
+                    validation_result["errors"].append(
+                        "'lengths' must have exactly 2 elements: [min_length, max_length]"
+                    )
+                    validation_result["valid"] = False
+
+            # Validate 'starting_pdb' exists
+            if "starting_pdb" in settings:
+                pdb_path = Path(settings["starting_pdb"])
+                if not pdb_path.exists():
+                    validation_result["warnings"].append(
+                        f"Target PDB file not found: {settings['starting_pdb']}"
+                    )
 
         except Exception as e:
             validation_result["errors"].append(f"Error reading target_settings.json: {str(e)}")

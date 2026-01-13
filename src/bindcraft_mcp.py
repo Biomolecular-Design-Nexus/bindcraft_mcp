@@ -23,6 +23,16 @@ This MCP Server contains tools for:
    - Check status and results of a submitted or running job
    - Returns statistics on accepted/rejected designs and trajectories
 
+4. generate_config
+   - Generate BindCraft configuration files from PDB structures
+   - Analyzes PDB and creates target_settings.json for design jobs
+   - Fast, no GPU required
+
+5. validate_config
+   - Validate configuration files before job submission
+   - Checks required fields, types, and file existence
+   - Helps catch errors early
+
 Workflow Overview:
 1. AF2 Hallucination: Generate binder backbone conformations
 2. MPNN Sequence Design: Optimize sequences for the binder backbone
@@ -42,11 +52,14 @@ from fastmcp import FastMCP
 
 # Import tool MCPs
 from tools.bindcraft_design import bindcraft_design_mcp
+from tools.bindcraft_config import bindcraft_config_mcp
 
 # Server definition and mounting
 mcp = FastMCP(name="bindcraft")
 logger.info("Mounting bindcraft_design tool")
 mcp.mount(bindcraft_design_mcp)
+logger.info("Mounting bindcraft_config tool")
+mcp.mount(bindcraft_config_mcp)
 
 if __name__ == "__main__":
     logger.info("Starting BindCraft MCP server")

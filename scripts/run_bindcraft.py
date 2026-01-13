@@ -102,6 +102,16 @@ Examples:
         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
         help='Logging level (default: INFO)'
     )
+    parser.add_argument(
+        '--validate-only',
+        action='store_true',
+        help='Only validate configuration files without running design'
+    )
+    parser.add_argument(
+        '--skip-validation',
+        action='store_true',
+        help='Skip configuration validation (not recommended)'
+    )
 
     return parser.parse_args()
 
@@ -120,6 +130,148 @@ def setup_default_paths(args):
         args.advanced = os.path.join(repo_bindcraft_dir, 'settings_advanced', 'default_4stage_multimer.json')
 
     return args
+
+
+def validate_config_files(settings_path, filters_path=None, advanced_path=None, check_files=True):
+    """
+    Validate BindCraft configuration files before running.
+
+    This function can be used standalone or called before run_bindcraft to ensure
+    configuration files are valid.
+
+    Args:
+        settings_path: Path to target settings JSON file
+        filters_path: Path to filter settings JSON file (optional)
+        advanced_path: Path to advanced settings JSON file (optional)
+        check_files: Whether to verify referenced files exist (default: True)
+
+    Returns:
+        dict: Validation result with keys:
+            - valid: bool indicating if all configs are valid
+            - errors: list of error messages
+            - warnings: list of warning messages
+            - summary: dict with per-config validation status
+
+    Raises:
+        SystemExit: If validation fails and this is called from main()
+
+    Example:
+        >>> result = validate_config_files("target.json", "filters.json", "advanced.json")
+        >>> if not result["valid"]:
+        ...     print(f"Errors: {result['errors']}")
+        ...     sys.exit(1)
+    """
+    import json
+    from pathlib import Path
+
+    result = {
+        "valid": True,
+        "errors": [],
+        "warnings": [],
+        "summary": {}
+    }
+
+    # Required fields for target settings (matching run_bindcraft.py expectations)
+    target_required = [
+        "design_path", "binder_name", "starting_pdb", "chains",
+        "lengths", "number_of_final_designs"
+    ]
+
+    # Validate target settings
+    try:
+        if not os.path.exists(settings_path):
+            result["valid"] = False
+            result["errors"].append(f"Target settings file not found: {settings_path}")
+            result["summary"]["target_valid"] = False
+        else:
+            with open(settings_path, 'r') as f:
+                target_settings = json.load(f)
+
+            result["summary"]["target_valid"] = True
+
+            # Check required fields
+            for field in target_required:
+                if field not in target_settings:
+                    result["valid"] = False
+                    result["errors"].append(f"[target] Missing required field: {field}")
+                    result["summary"]["target_valid"] = False
+
+            # Validate 'lengths' format
+            if "lengths" in target_settings:
+                lengths = target_settings["lengths"]
+                if not isinstance(lengths, list) or len(lengths) != 2:
+                    result["valid"] = False
+                    result["errors"].append(
+                        "[target] 'lengths' must be [min, max] array"
+                    )
+                    result["summary"]["target_valid"] = False
+                elif lengths[0] > lengths[1]:
+                    result["valid"] = False
+                    result["errors"].append(
+                        f"[target] 'lengths' min ({lengths[0]}) > max ({lengths[1]})"
+                    )
+                    result["summary"]["target_valid"] = False
+
+            # Check if starting_pdb exists
+            if check_files and "starting_pdb" in target_settings:
+                pdb_path = target_settings["starting_pdb"]
+                if not os.path.exists(pdb_path):
+                    result["warnings"].append(f"[target] PDB file not found: {pdb_path}")
+
+    except json.JSONDecodeError as e:
+        result["valid"] = False
+        result["errors"].append(f"[target] Invalid JSON: {e}")
+        result["summary"]["target_valid"] = False
+    except Exception as e:
+        result["valid"] = False
+        result["errors"].append(f"[target] Error reading file: {e}")
+        result["summary"]["target_valid"] = False
+
+    # Validate filter settings (if provided)
+    if filters_path:
+        try:
+            if not os.path.exists(filters_path):
+                result["warnings"].append(f"[filters] File not found: {filters_path}")
+                result["summary"]["filters_valid"] = None
+            else:
+                with open(filters_path, 'r') as f:
+                    filters = json.load(f)
+                result["summary"]["filters_valid"] = True
+
+                # Validate filter structure
+                for filter_name, config in filters.items():
+                    if isinstance(config, dict):
+                        if "threshold" not in config and "InterfaceAAs" not in filter_name:
+                            result["warnings"].append(
+                                f"[filters] '{filter_name}' missing 'threshold'"
+                            )
+        except json.JSONDecodeError as e:
+            result["valid"] = False
+            result["errors"].append(f"[filters] Invalid JSON: {e}")
+            result["summary"]["filters_valid"] = False
+        except Exception as e:
+            result["warnings"].append(f"[filters] Error reading file: {e}")
+            result["summary"]["filters_valid"] = False
+
+    # Validate advanced settings (if provided)
+    if advanced_path:
+        try:
+            if not os.path.exists(advanced_path):
+                result["warnings"].append(f"[advanced] File not found: {advanced_path}")
+                result["summary"]["advanced_valid"] = None
+            else:
+                with open(advanced_path, 'r') as f:
+                    advanced = json.load(f)
+                result["summary"]["advanced_valid"] = True
+        except json.JSONDecodeError as e:
+            result["valid"] = False
+            result["errors"].append(f"[advanced] Invalid JSON: {e}")
+            result["summary"]["advanced_valid"] = False
+        except Exception as e:
+            result["warnings"].append(f"[advanced] Error reading file: {e}")
+            result["summary"]["advanced_valid"] = False
+
+    return result
 
 
 def initialize_pyrosetta(advanced_settings):
@@ -767,14 +919,53 @@ def main():
     # Parse arguments first to get log level
     args = parse_arguments()
 
-    # Check GPU availability (this also logs GPU info)
-    check_jax_gpu()
-
-    # Setup default paths
+    # Setup default paths first (needed for validation)
     args = setup_default_paths(args)
 
-    # Validate input files
+    # Validate input files exist
     settings_path, filters_path, advanced_path = perform_input_check(args)
+
+    # Validate configuration files before proceeding
+    if not args.skip_validation:
+        print("=" * 60)
+        print("Validating configuration files...")
+        print("=" * 60)
+
+        validation_result = validate_config_files(
+            settings_path=settings_path,
+            filters_path=filters_path,
+            advanced_path=advanced_path,
+            check_files=True
+        )
+
+        # Print validation results
+        if validation_result["errors"]:
+            print(f"\n❌ Validation ERRORS ({len(validation_result['errors'])}):")
+            for error in validation_result["errors"]:
+                print(f"   - {error}")
+
+        if validation_result["warnings"]:
+            print(f"\n⚠️  Validation WARNINGS ({len(validation_result['warnings'])}):")
+            for warning in validation_result["warnings"]:
+                print(f"   - {warning}")
+
+        if validation_result["valid"]:
+            print("\n✅ Configuration validation passed!")
+        else:
+            print("\n❌ Configuration validation FAILED!")
+            print("Please fix the errors above before running BindCraft.")
+            sys.exit(1)
+
+        # If --validate-only flag is set, exit after validation
+        if args.validate_only:
+            print("\n--validate-only flag set, exiting without running design.")
+            print("=" * 60)
+            sys.exit(0)
+
+        print("=" * 60 + "\n")
+
+    # Check GPU availability (this also logs GPU info)
+    check_jax_gpu()
 
     # Load settings
     target_settings, advanced_settings, filters = load_json_settings(
