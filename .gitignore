@@ -14,7 +14,6 @@ claude_outputs/
 env/
 reports/
 templates/
-tests/
 .gemini/
 params/
 repo/
