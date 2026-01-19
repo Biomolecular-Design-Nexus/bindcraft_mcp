@@ -2,7 +2,7 @@
 """Test script to list available MCP tools."""
 
 import asyncio
-from src.server import mcp
+from src.bindcraft_mcp import mcp
 
 async def test_tools():
     try:
