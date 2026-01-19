@@ -33,9 +33,10 @@ The BindCraft MCP provides powerful tools for protein binder design through both
 ├── README.md               # This file
 ├── env/                    # Conda environment
 ├── src/
-│   ├── server.py           # MCP server
-│   └── jobs/
-│       └── manager.py      # Job queue management
+│   ├── bindcraft_mcp.py    # MCP server (main entry point)
+│   └── tools/
+│       ├── bindcraft_design.py   # Design tools
+│       └── bindcraft_config.py   # Config tools
 ├── clean_scripts/
 │   ├── use_case_1_quick_design.py        # Quick synchronous design
 │   ├── use_case_2_async_submission.py    # Async job submission
@@ -46,7 +47,6 @@ The BindCraft MCP provides powerful tools for protein binder design through both
 ├── examples/
 │   └── data/               # Demo data (PDL1.pdb, configs)
 ├── configs/                # Configuration files
-├── jobs/                   # Job storage (created dynamically)
 └── repo/                   # Original BindCraft repository
 ```
 
@@ -54,14 +54,25 @@ The BindCraft MCP provides powerful tools for protein binder design through both
 
 ## Installation
 
+### Quick Setup (Recommended)
+
+Run the automated setup script:
+
+```bash
+cd bindcraft_mcp
+bash quick_setup.sh
+```
+
+The script will create the conda environment, clone the BindCraft repository, install all dependencies, and display the Claude Code configuration. See `quick_setup.sh --help` for options like `--skip-env` or `--skip-repo`.
+
 ### Prerequisites
 - Conda or Mamba (mamba recommended for faster installation)
 - Python 3.10+
 - NVIDIA GPU with CUDA support (recommended for design tasks)
 
-### Create Environment
+### Manual Installation (Alternative)
 
-Please follow the information in `reports/step3_environment.md` for complete setup procedure. A typical workflow:
+If you prefer manual installation or need to customize the setup, follow `reports/step3_environment.md`:
 
 ```bash
 # Navigate to the MCP directory
@@ -207,14 +218,14 @@ python clean_scripts/use_case_5_config_generator.py \
 
 ```bash
 # Install MCP server for Claude Code
-fastmcp install src/server.py --name bindcraft
+fastmcp install src/bindcraft_mcp.py --name bindcraft
 ```
 
 ### Option 2: Manual Installation for Claude Code
 
 ```bash
 # Add MCP server to Claude Code
-claude mcp add bindcraft -- $(pwd)/env/bin/python $(pwd)/src/server.py
+claude mcp add bindcraft -- $(pwd)/env/bin/python $(pwd)/src/bindcraft_mcp.py
 
 # Verify installation
 claude mcp list
@@ -229,7 +240,7 @@ Add to `~/.claude/settings.json`:
   "mcpServers": {
     "bindcraft": {
       "command": "/home/xux/Desktop/ProteinMCP/ProteinMCP/tool-mcps/bindcraft_mcp/env/bin/python",
-      "args": ["/home/xux/Desktop/ProteinMCP/ProteinMCP/tool-mcps/bindcraft_mcp/src/server.py"]
+      "args": ["/home/xux/Desktop/ProteinMCP/ProteinMCP/tool-mcps/bindcraft_mcp/src/bindcraft_mcp.py"]
     }
   }
 }
@@ -299,7 +310,7 @@ Add to `~/.gemini/settings.json`:
   "mcpServers": {
     "bindcraft": {
       "command": "/home/xux/Desktop/ProteinMCP/ProteinMCP/tool-mcps/bindcraft_mcp/env/bin/python",
-      "args": ["/home/xux/Desktop/ProteinMCP/ProteinMCP/tool-mcps/bindcraft_mcp/src/server.py"]
+      "args": ["/home/xux/Desktop/ProteinMCP/ProteinMCP/tool-mcps/bindcraft_mcp/src/bindcraft_mcp.py"]
     }
   }
 }
@@ -321,43 +332,22 @@ gemini
 
 ## Available Tools
 
-### Job Management Tools
+The BindCraft MCP provides 5 tools for protein binder design:
 
-These tools help manage long-running background jobs:
-
-| Tool | Description |
-|------|-------------|
-| `get_job_status` | Check job progress and current status |
-| `get_job_result` | Retrieve completed job results |
-| `get_job_log` | View job execution logs |
-| `cancel_job` | Cancel running job |
-| `list_jobs` | List all jobs with optional status filter |
-
-### Quick Operations (Sync API)
-
-These tools return results immediately (< 10 minutes):
+### Design Tools
 
 | Tool | Description | Parameters |
 |------|-------------|------------|
-| `quick_design` | Fast protein binder design | `input_file`, `output_dir`, `num_designs`, `chains`, `binder_length`, `device`, `hotspot` |
-| `monitor_progress` | Monitor job progress | `output_dir`, `detailed`, `continuous`, `interval` |
-| `generate_config` | Generate config files | `input_file`, `output_file`, `chains`, `binder_length`, `validate`, `analysis_type` |
+| `bindcraft_design_binder` | Synchronous binder design | `pdb_path`, `output_dir`, `target_chains`, `binder_length`, `num_designs`, `hotspot_residues`, `device` |
+| `bindcraft_submit` | Submit async design job | `pdb_path`, `output_dir`, `target_chains`, `binder_length`, `num_designs`, `hotspot_residues`, `device` |
+| `bindcraft_check_status` | Check async job status | `output_dir` |
 
-### Long-Running Tasks (Submit API)
-
-These tools return a job_id for tracking (> 10 minutes):
+### Configuration Tools
 
 | Tool | Description | Parameters |
 |------|-------------|------------|
-| `submit_async_design` | Async binder design | `input_file`, `output_dir`, `num_designs`, `chains`, `binder_length`, `device`, `hotspot`, `job_name` |
-| `submit_batch_design` | Multi-target batch processing | `input_file`, `output_dir`, `num_designs`, `max_concurrent`, `chains`, `binder_length`, `device`, `job_name` |
-
-### Utility Tools
-
-| Tool | Description |
-|------|-------------|
-| `list_example_data` | List available example files |
-| `get_default_configs` | Show available configuration files |
+| `generate_config` | Generate config from PDB | `pdb_path`, `output_path`, `target_chains`, `binder_length`, `analysis_type` |
+| `validate_config` | Validate config file | `config_path`, `strict` |
 
 ---
 
@@ -525,7 +515,7 @@ pip install jax[cuda12] jaxlib fastmcp loguru biopython pandas numpy click
 **Problem:** Import errors
 ```bash
 # Verify installation
-python -c "from src.server import mcp"
+python -c "from src.bindcraft_mcp import mcp"
 python -c "import jax; print(jax.devices())"  # Check GPU availability
 ```
 
@@ -546,42 +536,29 @@ claude mcp list
 
 # Re-add if needed
 claude mcp remove bindcraft
-claude mcp add bindcraft -- $(pwd)/env/bin/python $(pwd)/src/server.py
+claude mcp add bindcraft -- $(pwd)/env/bin/python $(pwd)/src/bindcraft_mcp.py
 ```
 
 **Problem:** Tools not working
 ```bash
 # Test server directly
-python src/server.py &
+python src/bindcraft_mcp.py &
 # Test with MCP inspector
-npx @anthropic/mcp-inspector src/server.py
+npx @anthropic/mcp-inspector src/bindcraft_mcp.py
 ```
 
-### Job Issues
+### Design Issues
 
-**Problem:** Job stuck in pending
-```bash
-# Check job directory
-ls -la jobs/
-
-# View job log
-python -c "
-from src.jobs.manager import job_manager
-print(job_manager.get_job_log('JOB_ID', 100))
-"
-```
-
-**Problem:** Job failed immediately
+**Problem:** Design job failed
 - Check input file paths are absolute
 - Verify BindCraft dependencies in `repo/scripts/`
 - Check GPU availability with `nvidia-smi`
-- Review job logs for specific error messages
+- Review output directory for log files
 
-**Problem:** Can't find job results
-```
-Use get_job_status with job_id "JOB_ID" to verify job completed
-Use get_job_log with job_id "JOB_ID" and tail 100 to see error details
-```
+**Problem:** Check status returns not found
+- Verify the output_dir path is correct
+- Check if the design process has started
+- Look for `.running` or `progress.json` files in output directory
 
 ### BindCraft Dependencies
 
@@ -613,32 +590,28 @@ mamba activate ./env
 python clean_scripts/use_case_5_config_generator.py --input examples/data/PDL1.pdb --output test_config
 python clean_scripts/use_case_3_monitor_progress.py --output nonexistent_dir
 
-# Test MCP server
-python test_server.py
-python test_mcp_integration.py
+# Test MCP tools
+python tests/test_tools.py
 ```
 
 ### Starting Dev Server
 
 ```bash
 # Run MCP server in dev mode
-fastmcp dev src/server.py
+fastmcp dev src/bindcraft_mcp.py
 
 # Or test with inspector
-npx @anthropic/mcp-inspector src/server.py
+npx @anthropic/mcp-inspector src/bindcraft_mcp.py
 ```
 
 ### Performance Monitoring
 
 ```bash
-# Monitor job queue
-ls -la jobs/*/
-
 # Check GPU usage
 nvidia-smi -l 1
 
-# View recent logs
-tail -f jobs/*/bindcraft_run.log
+# View design logs in output directories
+tail -f results/*/bindcraft_run.log
 ```
 
 ---
